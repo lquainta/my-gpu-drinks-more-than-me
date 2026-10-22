@@ -26,19 +26,20 @@ def _rms(frame: np.ndarray) -> float:
     return float(np.sqrt(np.mean(frame**2)))
 
 
-def record_push_to_talk() -> np.ndarray:
-    """Record from the moment this is called until the user presses Enter."""
+def record_push_to_talk(stop: threading.Event, on_level=None) -> np.ndarray:
+    """Record from the moment this is called until `stop` is set."""
     frames: list[np.ndarray] = []
-    stop = threading.Event()
 
     def callback(indata, _frames, _time, _status):
         frames.append(indata[:, 0].copy())
+        if on_level:
+            on_level(_rms(frames[-1]))
 
     with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32",
                         blocksize=BLOCK, callback=callback):
         chime("Tink")
-        threading.Thread(target=lambda: (input(), stop.set()), daemon=True).start()
-        stop.wait()
+        while not stop.wait(0.1):
+            pass
     chime("Pop")
     return np.concatenate(frames) if frames else np.zeros(0, dtype=np.float32)
 
@@ -47,6 +48,7 @@ def record_utterance(
     silence_seconds: float = 1.2,
     max_seconds: float = 30.0,
     sensitivity: float = 3.0,
+    on_level=None,
 ) -> np.ndarray:
     """Wait for speech, then record until the speaker goes quiet.
 
@@ -67,7 +69,10 @@ def record_utterance(
 
         while True:
             frame = stream.read(BLOCK)[0][:, 0].copy()
-            loud = _rms(frame) > threshold
+            level = _rms(frame)
+            if on_level:
+                on_level(level)
+            loud = level > threshold
             if not speaking:
                 pre_roll.append(frame)
                 loud_streak = loud_streak + 1 if loud else 0

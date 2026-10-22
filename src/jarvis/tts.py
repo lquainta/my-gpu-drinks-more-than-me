@@ -6,6 +6,7 @@ import re
 import subprocess
 import tempfile
 import threading
+import time
 import urllib.request
 
 import numpy as np
@@ -111,6 +112,7 @@ class Speaker:
         self._text: queue.Queue[tuple[int, str]] = queue.Queue()
         self._audio: queue.Queue[tuple[int, np.ndarray, int]] = queue.Queue()
         self._generation = 0  # bumped by stop() so stale audio is dropped
+        self._now_playing: tuple[np.ndarray, int, float] | None = None
         threading.Thread(target=self._synthesize_loop, daemon=True).start()
         threading.Thread(target=self._play_loop, daemon=True).start()
 
@@ -133,10 +135,25 @@ class Speaker:
             generation, audio, sr = self._audio.get()
             try:
                 if generation == self._generation:
+                    self._now_playing = (audio, sr, time.monotonic())
                     sd.play(audio, sr)
                     sd.wait()
             finally:
+                self._now_playing = None
                 self._audio.task_done()
+
+    def is_speaking(self) -> bool:
+        return self._now_playing is not None
+
+    def level(self) -> float:
+        """Loudness of the audio playing right now, for visualisation."""
+        playing = self._now_playing
+        if not playing:
+            return 0.0
+        audio, sr, started = playing
+        i = int((time.monotonic() - started) * sr)
+        window = audio[i : i + 1024]
+        return float(np.sqrt(np.mean(window**2))) if len(window) else 0.0
 
     def say(self, text: str) -> None:
         text = clean_for_speech(text)

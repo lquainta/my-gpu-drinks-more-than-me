@@ -11,6 +11,23 @@ You speak, Jarvis listens, Claude Code does the work, and Jarvis answers aloud i
 - **Speaking** runs locally with [Kokoro](https://github.com/thewh1teagle/kokoro-onnx), a small neural voice model, as a refined British male voice with a subtle reverb for that AI-in-the-room sound. The model (~340 MB) downloads to `~/.cache/jarvis` on first run. `--tts say` switches to the macOS built-in voices instead.
 - **Thinking** is Claude Code itself, so Jarvis can read and edit files and run commands in the directory you start it in. This is the only part that needs the internet.
 
+## The HUD
+
+Jarvis runs as a full-screen holographic HUD: an animated arc reactor that spins up while
+thinking (gold) and pulses with your voice and his, a live waveform, a comms log that types
+itself out, a feed of the tools Claude Code is using, and live diagnostics (CPU load, battery,
+session, cost). Scanlines, a sweeping scan band, flicker and the odd glitch keep it holographic.
+
+| Key | |
+| --- | --- |
+| `SPACE` / `ENTER` | Start talking, then send |
+| `ESC` | Interrupt Jarvis mid-reply |
+| `Q` / `Ctrl-C` | Shut down |
+
+It needs a terminal at least 80×24 with 24-bit color (Apple Terminal, iTerm2, Ghostty, etc.).
+`--plain` gives the old scrolling output, and it is used automatically when input or output
+is piped.
+
 ## Requirements
 
 - macOS
@@ -20,7 +37,7 @@ You speak, Jarvis listens, Claude Code does the work, and Jarvis answers aloud i
 ## Usage
 
 ```sh
-uv run jarvis                      # push-to-talk: press Enter, speak, press Enter
+uv run jarvis                      # push-to-talk: press Space, speak, press Space
 uv run jarvis --mode handsfree     # always listening; start with "Jarvis, ..."
 uv run jarvis --mode text          # type instead of talk (still speaks back)
 ```
@@ -34,8 +51,6 @@ Things you can say:
 | "Jarvis, run the tests" | Anything you'd ask Claude Code |
 | "New conversation" / "Start over" | Forget the current conversation |
 | "That will be all" / "Goodbye" | Quit |
-
-Press **Ctrl-C** while Jarvis is talking or working to interrupt; press it at the prompt to quit.
 
 ### Options
 
@@ -53,6 +68,7 @@ Press **Ctrl-C** while Jarvis is talking or working to interrupt; press it at th
 | `--silence` | `1.2` | Seconds of quiet that end a sentence in hands-free mode |
 | `--no-wake-word` | | In hands-free mode, respond to everything |
 | `--mute` | | Print replies without speaking |
+| `--plain` | | Plain scrolling output instead of the HUD |
 
 The voice is styled after the character (calm, British, a little processed), not a copy of
 any actor's voice.
@@ -62,6 +78,8 @@ any actor's voice.
 ```
 src/jarvis/
   cli.py      main loop, built-in phrases, argument parsing
+  hud.py      the full-screen holographic HUD (raw ANSI truecolor, ~15 fps)
+  ui.py       the plain scrolling interface
   brain.py    runs `claude -p` with streaming JSON and resumes the session each turn
   persona.py  the J.A.R.V.I.S. personality, appended to Claude Code's system prompt
   stt.py      speech-to-text (faster-whisper)

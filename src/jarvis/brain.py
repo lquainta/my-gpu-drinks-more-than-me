@@ -11,7 +11,7 @@ from jarvis.persona import PERSONA
 
 @dataclass
 class Event:
-    kind: str  # "text", "tool", "error", or "done"
+    kind: str  # "text", "tool", "error", "cost", or "done"
     value: str = ""
 
 
@@ -53,9 +53,13 @@ class Brain:
                 if msg.get("session_id"):
                     self.session_id = msg["session_id"]
                 # Only the main agent speaks; ignore sub-agent chatter.
-                if msg.get("type") != "stream_event" or msg.get("parent_tool_use_id"):
-                    if msg.get("type") == "result" and msg.get("is_error"):
+                if msg.get("type") == "result":
+                    if msg.get("is_error"):
                         yield Event("error", str(msg.get("result", "unknown error")))
+                    if msg.get("total_cost_usd") is not None:
+                        yield Event("cost", str(msg["total_cost_usd"]))
+                    continue
+                if msg.get("type") != "stream_event" or msg.get("parent_tool_use_id"):
                     continue
                 event = msg["event"]
                 if event["type"] == "content_block_delta" and event["delta"]["type"] == "text_delta":
