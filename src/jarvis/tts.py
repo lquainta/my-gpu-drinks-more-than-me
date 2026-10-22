@@ -105,7 +105,7 @@ class Speaker:
     by the time the current one finishes.
     """
 
-    def __init__(self, voice=None, fx: bool = True, enabled: bool = True):
+    def __init__(self, voice=None, fx: bool = False, enabled: bool = True):
         self.voice = voice
         self.fx = fx
         self.enabled = enabled and voice is not None

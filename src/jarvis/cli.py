@@ -109,8 +109,8 @@ def main() -> None:
                                         "bm_fable; say: Daniel (default) or see `say -v '?'`")
     parser.add_argument("--speed", type=float, default=1.05, help="kokoro speaking speed")
     parser.add_argument("--rate", type=int, default=185, help="say speaking rate, words per minute")
-    parser.add_argument("--no-fx", dest="fx", action="store_false",
-                        help="turn off the subtle reverb and doubling on the voice")
+    parser.add_argument("--fx", action="store_true",
+                        help="add a reverb and doubling effect to the voice (off by default)")
     parser.add_argument("--mute", action="store_true", help="print replies without speaking")
     parser.add_argument("--plain", action="store_true",
                         help="plain scrolling output instead of the full-screen HUD")
