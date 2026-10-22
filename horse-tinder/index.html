@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horse Tinder</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: linear-gradient(160deg, #fff4e6, #ffe0e6);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #3b2a1a;
+    user-select: none;
+  }
+  header {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+  }
+  h1 { font-size: 1.8rem; color: #e0475b; letter-spacing: -0.5px; }
+  h1 span { font-size: 1.5rem; }
+  .tab-btn {
+    background: white; border: none; border-radius: 20px;
+    padding: 8px 14px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1); color: #e0475b;
+  }
+  #deck {
+    position: relative;
+    width: 340px;
+    height: 480px;
+    margin-top: 10px;
+  }
+  .card {
+    position: absolute; inset: 0;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+    background: white;
+    cursor: grab;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    touch-action: none;
+  }
+  .card.dragging { transition: none; cursor: grabbing; }
+  .card .photo {
+    height: 68%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9rem;
+  }
+  .card .info { padding: 14px 18px; }
+  .card .name { font-size: 1.5rem; font-weight: 700; }
+  .card .name small { font-weight: 400; color: #7a6650; }
+  .card .meta { font-size: 0.9rem; color: #7a6650; margin: 4px 0 8px; }
+  .card .bio { font-size: 0.95rem; line-height: 1.35; }
+  .stamp {
+    position: absolute; top: 30px; padding: 6px 12px;
+    border: 4px solid; border-radius: 8px;
+    font-size: 1.8rem; font-weight: 800; opacity: 0;
+  }
+  .stamp.like { left: 20px; color: #2bb673; border-color: #2bb673; transform: rotate(-15deg); }
+  .stamp.nope { right: 20px; color: #e0475b; border-color: #e0475b; transform: rotate(15deg); }
+  .controls { display: flex; gap: 28px; margin: 24px 0; }
+  .controls button {
+    width: 68px; height: 68px; border-radius: 50%;
+    border: none; background: white; font-size: 1.9rem; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: transform 0.15s;
+  }
+  .controls button:hover { transform: scale(1.1); }
+  .empty {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; gap: 12px;
+    color: #7a6650;
+  }
+  .empty button { background: #e0475b; color: white; border: none; padding: 10px 18px; border-radius: 20px; font-weight: 600; cursor: pointer; }
+  #matches { display: none; width: 340px; margin-top: 10px; }
+  #matches h2 { margin-bottom: 12px; }
+  .match {
+    display: flex; align-items: center; gap: 12px;
+    background: white; border-radius: 14px; padding: 10px 14px; margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .match .avatar { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+  .match .line { font-size: 0.85rem; color: #7a6650; }
+  #toast {
+    position: fixed; inset: 0; background: rgba(224,71,91,0.92);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    color: white; text-align: center; gap: 14px; z-index: 10;
+  }
+  #toast h2 { font-size: 2.6rem; font-style: italic; }
+  #toast .pair { font-size: 5rem; }
+  #toast button { background: white; color: #e0475b; border: none; padding: 12px 24px; border-radius: 24px; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>🐴</span> Horse Tinder</h1>
+  <button class="tab-btn" id="toggle">Matches (0)</button>
+</header>
+
+<div id="swipe-view">
+  <div id="deck"></div>
+  <div class="controls">
+    <button id="nope" title="Nope">❌</button>
+    <button id="like" title="Like">💚</button>
+  </div>
+</div>
+
+<div id="matches">
+  <h2>Your Stable</h2>
+  <div id="match-list"></div>
+</div>
+
+<div id="toast">
+  <h2>It's a Match!</h2>
+  <div class="pair">🐴❤️🐴</div>
+  <p id="toast-text"></p>
+  <button id="keep">Keep Galloping</button>
+</div>
+
+<script>
+const HORSES = [
+  { name: "Buttercup", age: 7, breed: "Palomino", miles: 3, color: "#f6d365", bio: "Looking for someone to share a hay bale with. Will not share my carrots." },
+  { name: "Thunder", age: 5, breed: "Arabian", miles: 12, color: "#a1c4fd", bio: "Fast runner, faster lover. Swipe right if you can keep up." },
+  { name: "Sir Neighs-a-Lot", age: 11, breed: "Clydesdale", miles: 1, color: "#fbc2eb", bio: "Gentle giant. Big hooves, bigger heart. Former beer commercial model." },
+  { name: "Midnight", age: 6, breed: "Friesian", miles: 8, color: "#cfd9df", bio: "Dark, mysterious, excellent mane. Into moonlit trots and existential whinnying." },
+  { name: "Daisy", age: 4, breed: "Shetland Pony", miles: 2, color: "#d4fc79", bio: "Small but mighty. Yes, I'm a real horse. No, you can't ride me." },
+  { name: "Maverick", age: 9, breed: "Mustang", miles: 40, color: "#fda085", bio: "Wild at heart. Never been tamed and not planning to start now." },
+  { name: "Princess Oats", age: 8, breed: "Appaloosa", miles: 5, color: "#e0c3fc", bio: "Spotted and proud. Looking for my knight in shining horseshoes." },
+  { name: "Gary", age: 14, breed: "Quarter Horse", miles: 6, color: "#c2e9fb", bio: "Just a regular guy horse. Enjoys standing in fields. Occasionally a different field." },
+  { name: "Seabiscuit Jr.", age: 3, breed: "Thoroughbred", miles: 20, color: "#ffecd2", bio: "Dad was famous. I'm mostly famous for eating fence posts." },
+  { name: "Clover", age: 10, breed: "Haflinger", miles: 4, color: "#b7f8db", bio: "Blonde, sunny, allergic to drama. Swipe right for good vibes only." },
+];
+
+const STORAGE_KEY = "horse-tinder-state";
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || { index: 0, matches: [] };
+const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+const deck = document.getElementById("deck");
+const toggleBtn = document.getElementById("toggle");
+
+function cardHTML(h) {
+  return `
+    <div class="photo" style="background:${h.color}">🐎</div>
+    <div class="stamp like">LIKE</div>
+    <div class="stamp nope">NOPE</div>
+    <div class="info">
+      <div class="name">${h.name} <small>${h.age}</small></div>
+      <div class="meta">${h.breed} · ${h.miles} miles away</div>
+      <div class="bio">${h.bio}</div>
+    </div>`;
+}
+
+function render() {
+  deck.innerHTML = "";
+  toggleBtn.textContent = `Matches (${state.matches.length})`;
+  if (state.index >= HORSES.length) {
+    deck.innerHTML = `<div class="empty"><div style="font-size:4rem">🏜️</div>
+      <p>You've seen every horse in the area.<br>The pasture is empty.</p>
+      <button id="reset">Start Over</button></div>`;
+    document.getElementById("reset").onclick = () => { state = { index: 0, matches: [] }; save(); render(); };
+    return;
+  }
+  // Render the next two so there is a card peeking beneath the top one.
+  for (let i = Math.min(state.index + 1, HORSES.length - 1); i >= state.index; i--) {
+    const el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML = cardHTML(HORSES[i]);
+    if (i !== state.index) el.style.transform = "scale(0.95) translateY(10px)";
+    deck.appendChild(el);
+  }
+  attachDrag(deck.lastElementChild);
+}
+
+function swipe(dir) {
+  const card = deck.querySelector(".card:last-child");
+  if (!card || card.dataset.gone) return;
+  card.dataset.gone = "1";
+  card.style.transform = `translateX(${dir * 500}px) rotate(${dir * 30}deg)`;
+  card.style.opacity = "0";
+  const horse = HORSES[state.index];
+  state.index++;
+  // Horses are romantic but not desperate: about 60% of likes are mutual.
+  const matched = dir > 0 && Math.random() < 0.6;
+  if (matched) state.matches.push(horse);
+  save();
+  setTimeout(() => { render(); if (matched) showMatch(horse); }, 300);
+}
+
+function attachDrag(card) {
+  let startX = 0, dx = 0, dragging = false;
+  const like = card.querySelector(".stamp.like"), nope = card.querySelector(".stamp.nope");
+  card.addEventListener("pointerdown", e => {
+    dragging = true; startX = e.clientX; card.classList.add("dragging");
+    card.setPointerCapture(e.pointerId);
+  });
+  card.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    dx = e.clientX - startX;
+    card.style.transform = `translateX(${dx}px) rotate(${dx / 15}deg)`;
+    like.style.opacity = Math.max(0, dx / 100);
+    nope.style.opacity = Math.max(0, -dx / 100);
+  });
+  card.addEventListener("pointerup", () => {
+    dragging = false; card.classList.remove("dragging");
+    if (Math.abs(dx) > 100) swipe(Math.sign(dx));
+    else { card.style.transform = ""; like.style.opacity = nope.style.opacity = 0; }
+    dx = 0;
+  });
+}
+
+function showMatch(h) {
+  document.getElementById("toast-text").textContent = `You and ${h.name} both swiped right.`;
+  document.getElementById("toast").style.display = "flex";
+}
+document.getElementById("keep").onclick = () => document.getElementById("toast").style.display = "none";
+
+document.getElementById("like").onclick = () => swipe(1);
+document.getElementById("nope").onclick = () => swipe(-1);
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") swipe(1);
+  if (e.key === "ArrowLeft") swipe(-1);
+});
+
+const LINES = ["Hay there 👋", "Wanna go for a trot?", "Is that a carrot in your pocket?", "Neigh-ce to meet you!", "You had me at whinny."];
+let showingMatches = false;
+toggleBtn.onclick = () => {
+  showingMatches = !showingMatches;
+  document.getElementById("swipe-view").style.display = showingMatches ? "none" : "block";
+  document.getElementById("matches").style.display = showingMatches ? "block" : "none";
+  toggleBtn.textContent = showingMatches ? "Back to Swiping" : `Matches (${state.matches.length})`;
+  const list = document.getElementById("match-list");
+  list.innerHTML = state.matches.length
+    ? state.matches.map((h, i) => `<div class="match">
+        <div class="avatar" style="background:${h.color}">🐎</div>
+        <div><strong>${h.name}</strong><div class="line">${LINES[i % LINES.length]}</div></div>
+      </div>`).join("")
+    : `<p style="color:#7a6650">No matches yet. Get swiping, cowboy.</p>`;
+};
+
+render();
+</script>
+</body>
+</html>

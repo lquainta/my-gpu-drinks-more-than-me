@@ -86,8 +86,14 @@ def main() -> None:
                              "text: type instead of talking")
     parser.add_argument("--no-wake-word", dest="wake_word", action="store_false",
                         help="in handsfree mode, respond to everything, not just 'Jarvis ...'")
-    parser.add_argument("--voice", default="Daniel", help="macOS voice (see `say -v '?'`)")
-    parser.add_argument("--rate", type=int, default=185, help="speaking rate, words per minute")
+    parser.add_argument("--tts", choices=["kokoro", "say"], default="kokoro",
+                        help="kokoro: natural neural voice (default); say: macOS built-in voices")
+    parser.add_argument("--voice", help="kokoro: bm_george (default), bm_lewis, bm_daniel, "
+                                        "bm_fable; say: Daniel (default) or see `say -v '?'`")
+    parser.add_argument("--speed", type=float, default=1.05, help="kokoro speaking speed")
+    parser.add_argument("--rate", type=int, default=185, help="say speaking rate, words per minute")
+    parser.add_argument("--no-fx", dest="fx", action="store_false",
+                        help="turn off the subtle reverb and doubling on the voice")
     parser.add_argument("--mute", action="store_true", help="print replies without speaking")
     parser.add_argument("--whisper-model", default="base.en",
                         help="tiny.en, base.en, small.en, medium.en (bigger = more accurate, slower)")
@@ -100,7 +106,15 @@ def main() -> None:
                         help="Claude Code permission mode (no one can click 'allow' by voice)")
     args = parser.parse_args()
 
-    speaker = Speaker(voice=args.voice, rate=args.rate, enabled=not args.mute)
+    voice = None
+    if not args.mute:
+        from jarvis.tts import KokoroVoice, SayVoice
+        if args.tts == "kokoro":
+            print(f"{DIM}Loading voice...{RESET}")
+            voice = KokoroVoice(args.voice or "bm_george", speed=args.speed)
+        else:
+            voice = SayVoice(args.voice or "Daniel", rate=args.rate)
+    speaker = Speaker(voice, fx=args.fx)
     brain = Brain(cwd=args.cwd, model=args.model, permission_mode=args.permission_mode)
 
     transcriber = None

@@ -28,15 +28,15 @@ class Transcriber:
         return self.transcribe(load_audio(path))
 
 
-def load_audio(path: str) -> np.ndarray:
-    """Decode any audio file macOS understands to 16 kHz mono float32."""
+def load_audio(path: str, sample_rate: int = SAMPLE_RATE) -> np.ndarray:
+    """Decode any audio file macOS understands to mono float32."""
     import subprocess
     import tempfile
     import wave
 
     with tempfile.NamedTemporaryFile(suffix=".wav") as tmp:
         subprocess.run(
-            ["afconvert", "-f", "WAVE", "-d", f"LEI16@{SAMPLE_RATE}", "-c", "1", path, tmp.name],
+            ["afconvert", "-f", "WAVE", "-d", f"LEI16@{sample_rate}", "-c", "1", path, tmp.name],
             check=True,
         )
         with wave.open(tmp.name) as wav:
